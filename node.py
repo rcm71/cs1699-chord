@@ -309,7 +309,7 @@ class Chord_Node:
                    'ip':new_succ.ip,
                    'port':new_succ.port}
         
-        # cerealize
+        # cerealize - trix suck
         to_send = pickle.dumps(message)
 
         # off to the os 
