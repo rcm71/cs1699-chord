@@ -79,10 +79,6 @@ class Node:
         ip_encoded = self.ipv4.encode('utf-8')
         self.hashname = hashlib.sha1(ip_encoded).hexdigest()
     
-    def init_with_hash(self, ip, port, hashname):
-        self.ip = ip
-        self.port = port
-        self.hashname = hashname
 
 # have not been oop-ing in..... awhile
 # lets fix that
@@ -120,9 +116,10 @@ class Chord_Node:
         self.server.listen(5)
         while True:
             try:
-                # block until we get a connection request
+                # will throw TimeoutException if nothin waiting
                 (client_socket, client_address) = self.server.accept()
                 # what do they want !?!?!
+                # MMMMMm make this better so we dont have max bytes yk
                 data_bytes = client_socket.recv(2048)
                 # deserialize. mmm pickles
                 message = pickle.loads(data_bytes)
@@ -190,7 +187,10 @@ class Chord_Node:
             return
         elif message['hashname'] < self.me.hashname:
             # either goes right here as pred or we punt off this message to our pred
-            pass
+            if message['hashname'] < self.predecessor.hashname:
+                pass
+            else:
+                pass
         elif message['hashname'] > self.me.hashname:
             #either is our succ or we punt off message to our succ
             pass
@@ -253,7 +253,7 @@ class Chord_Node:
         print(f"Updated successor to: {message['ip']}:{message['port']}")
     
     def send_leave():
-        
+
         pass
 
 if __name__ == "__main__":
