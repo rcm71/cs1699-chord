@@ -120,8 +120,6 @@ class Chord_Node:
         # no block!
         self.server.setblocking(0)
         self.server.settimeout(0.5)
-        # lemme resue pls, for the whole multiple client thing
-        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.me.ip, self.me.port))
     
     # nodes will sit here waiting for requests, handle in dif methods
@@ -164,7 +162,6 @@ class Chord_Node:
     def send_join(self, connection):
         # gotta set up client so we can send messages and disconnect safely
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.clients.append(client)
     
 
@@ -182,7 +179,6 @@ class Chord_Node:
         to_send = pickle.dumps(message)
         # send it on over, we don't need to keep connection open
         client.send(to_send)
-        client.shutdown(socket.SHUT_RDWR)
         client.close()
         self.clients.remove(client)
 
@@ -239,7 +235,6 @@ class Chord_Node:
     def punt_join(self, message, goal_node):
         # create socket to send from
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.clients.append(client)
         client.connect((goal_node.ip, goal_node.port))
 
@@ -259,7 +254,6 @@ class Chord_Node:
     def send_update_pred(self, goal_node, new_pred):
         # he's alive!
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.clients.append(client)
 
         client.connect((goal_node.ip, goal_node.port))
@@ -298,7 +292,6 @@ class Chord_Node:
     # new_succ: Node that goal needs to set as it's successor
     def send_update_succ(self, goal_node, new_succ):
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.clients.append(client)
 
         client.connect((goal_node.ip, goal_node.port))
@@ -333,15 +326,52 @@ class Chord_Node:
         print(f"Updated successor to: {ip}:{port}")
     
     # lets the locals know that we gotta go...
+    # The predecessor of the leaving node updates its successor 
+    # pointer to the departing node’s successor. The successor
+    # updates its predecessor pointer to the departing node’s predecessor.
+    # The leaving node transfers any data it was responsible for to its successor.
     def send_leave(self):
+        # curr: pred -> me -> succ
+        # want: Pred -> succ
+        # changes predecessor's successor to ours
+        self.send_update_succ(self.predecessor, self.successor)
 
-        pass
+        # changes successor's pred to self.pred
+        self.send_update_pred(self.successor, self.predecessor)
+
+        for (key, value) in self.data_dict:
+            self.punt_data(key, self.successor)
+
+    # sends data from one node to another.
+    # Used if self gets sent some data it doesn't want,
+    # or on a leave()
+    #
+    # key: string used as key in data_dict of data we want
+    # goal_node: Node we want to send k/v pair to
+    def punt_data(self, key, goal_node):
+        # make a client to send data
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.clients.append(client)
+        # connect
+        client.connect((goal_node.ip, goal_node.port))
+
+        # create message
+        message = {'type': 'DATA',
+                   'key':key,
+                   'data':self.data_dict['key']}
+        
+        # cherrio!
+        to_send = pickle.dumps(message)
+        # send
+        client.send(to_send)
+        client.close()
+        self.clients.remove(client)
 
 if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt:
-        # properly closes the stuffs if we keyboard interrupt
+    except:
+        # properly closes the stuffs if we break
         node.send_leave()
         if node != None:
             node.server.close()
