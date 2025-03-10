@@ -136,24 +136,26 @@ class Chord_Node:
                 data_bytes = client_socket.recv(2048)
                 # deserialize. mmm pickles
                 message = pickle.loads(data_bytes)
-
-                # switch action
-                match message["type"]:
-                    case "CONNECT": 
-                        self.recv_join(message)
-                    case "UPDATE_PRED":
-                        self.recv_update_pred(message)
-                    case "UPDATE_SUCC":
-                        self.recv_update_succ(message)
-                    case "LEAVE":
-                        if message['ip'] == self.me.ip and message['port'] == self.me.port:
-                            self.leave()
-                        else:
-                            self.punt_leave(message)
-                    case "LOOKUP":
-                        self.recv_lookup(message)
-                    case _ :
-                        pass
+                if 'type' in message:
+                    # switch action
+                    match message["type"]:
+                        case "CONNECT": 
+                            self.recv_join(message)
+                        case "UPDATE_PRED":
+                            self.recv_update_pred(message)
+                        case "UPDATE_SUCC":
+                            self.recv_update_succ(message)
+                        case "LEAVE":
+                            if message['ip'] == self.me.ip and message['port'] == self.me.port:
+                                self.leave()
+                            else:
+                                self.punt_leave(message)
+                        case "LOOKUP":
+                            self.recv_lookup(message)
+                        case "PUT":
+                            self.recv_put(message)
+                        case _ :
+                            pass
                 
                 client_socket.close()
 
@@ -355,9 +357,9 @@ class Chord_Node:
         self.send_update_pred(self.successor, self.predecessor)
 
         for (key, value) in self.data_dict:
-            self.punt_data(key, self.successor)
-        node.server.close()
-        for client in node.clients:
+            self.punt_data(key,value, self.successor)
+        self.server.close()
+        for client in self.clients:
             client.close()
         exit()
 
@@ -382,7 +384,8 @@ class Chord_Node:
     #
     # key: string used as key in data_dict of data we want
     # goal_node: Node we want to send k/v pair to
-    def punt_data(self, key, goal_node):
+    def punt_data(self, key, value, goal_node):
+        print("punting data")
         # make a client to send data
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.clients.append(client)
@@ -390,9 +393,9 @@ class Chord_Node:
         client.connect((goal_node.ip, goal_node.port))
 
         # create message
-        message = {'type':'DATA',
+        message = {'type':'PUT',
                    'key':key,
-                   'data':self.data_dict['key']}
+                   'value':value}
         
         # cherrio!
         to_send = pickle.dumps(message)
@@ -470,6 +473,29 @@ class Chord_Node:
         client.send(to_send)
         client.close()
         self.clients.remove(client)
+
+    def recv_put(self, message):
+        print("recieved put")
+        key = message['key']
+        value = message['value']
+        key_hash = hashlib.sha1(key.encode('utf-8')).hexdigest()
+        # if we solo, we take everything
+        if(self.successor == None or self.predecessor == None):
+            self.data_dict[key] = value
+            return
+        # should go behind us
+        elif self.me.hashname > key_hash and self.me.hashname > self.predecessor.hashname:
+            self.punt_data(key, value, self.predecessor)
+            return
+        # in front!
+        elif self.successor.hashname < key_hash and self.me.hashname < self.successor.hashname:
+            self.punt_data(key, value, self.successor)
+            return
+        else:
+            print(f"Inserting: {key} / {value}")
+            self.data_dict[key] = value
+
+
 
 if __name__ == "__main__":
     try:

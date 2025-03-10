@@ -13,7 +13,7 @@ argstring += "\t\t./client.py leave -ip <client-ip> -p <client-port> -n <chord-c
 argstring += "\tTo lookup a key to find where it's located:\n"
 argstring += "\t\t./client.py lookup -k <key> -n <chord-contact-ip>\n"
 argstring += "\tTo insert data to Chord:\n"
-argstring += "\t\t./client.py put -k <key> -v <value> -n 1<chord-contact-ip>"
+argstring += "\t\t./client.py put -k <key> -v <value> -n <chord-contact-ip>"
 argstring += "\tTo retrieve data from chord:\n"
 argstring += "\t\t./client.py get -k <key> -n <chord-contact-ip>"
 
@@ -60,8 +60,16 @@ def main():
             print(argstring)
             return
         leave(ip, port, contact)
-    if client_type == "lookup":
+    elif client_type == "lookup":
+        if key == None:
+            print(argstring)
+            return
         lookup(key, contact)
+    elif client_type == "put":
+        if key == None or value == None:
+            print(argstring)
+            return
+        put(key, value, contact)
     
 
 def leave(ip, port, contact):
@@ -115,6 +123,23 @@ def lookup(key, contact):
     connection_socket.close()
     client.close()
     server.close()
+    exit()
+
+def put(key,value, contact):
+    # crate client socket to sedn the k/v pair
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    contact = contact.split(":")
+    client.connect((contact[0], int(contact[1])))
+    # create message
+    message = {'type':'PUT',
+               'key':key,
+               'value':value}
+    # serialize
+    to_send = pickle.dumps(message)
+
+    # close it down
+    client.send(to_send)
+    client.close()
     exit()
         
 
