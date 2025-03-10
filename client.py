@@ -82,18 +82,28 @@ def leave(ip, port, contact):
     exit()
 
 def lookup(key, contact):
+    # gonna need a client to send message and connect to first node
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     contact = contact.split(":")
     client.connect((contact[0], int(contact[1])))
-    address = client.getsockname()
+    # also gonna need a listneer endpoint to get a response
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    offset = 1
+    while True:
+        try:
+            server.bind(("127.0.0.1", 6000+offset))
+            break
+        except:
+            offset += 1
+    address = server.getsockname()
     message = {'type':"LOOKUP",
                'ip':address[0],
                'port':address[1],
                'key':key}
     to_send = pickle.dumps(message)
     client.send(to_send)
-    client.listen(5)
-    (connection_socket, addr) = client.accept()
+    server.listen(1)
+    (connection_socket, addr) = server.accept()
     data_byte = connection_socket.recv(2048)
     message = pickle.loads(data_byte)
 
@@ -104,6 +114,7 @@ def lookup(key, contact):
             print(f"Failed to find data in DHT")
     connection_socket.close()
     client.close()
+    server.close()
     exit()
         
 

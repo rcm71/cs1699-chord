@@ -411,10 +411,13 @@ class Chord_Node:
             key_hash =  message['key'].encode('utf-8')
             key_hash = hashlib.sha1(key_hash).hexdigest()
             # if we should and dont, we prob don't have period
-            if key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname:
-                self.message_log.remove(message)
+            # gotta make sure we're not solo and break
+            if (self.successor == None or self.predecessor == None):
                 self.send_lookup_fail(message)
-            self.message_log.append(message)
+                return
+            if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
+                self.send_lookup_fail(message)
+                return
             self.punt_lookup(message)
     # sends message on back to client.py telling them
     # our IP
