@@ -142,6 +142,41 @@ def put(key,value, contact):
     client.close()
     exit()
         
+def get(key, contact):
+    # ask for the loot
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    contact = contact.split(":")
+    client.connect((contact[0], int(contact[1])))
+    # listen for response
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    offset = 1
+    while True:
+        try:
+            server.bind(("127.0.0.1", 6000+offset))
+            break
+        except:
+            offset += 1
+    address = server.getsockname()
+    message = {'type':"GET",
+               'ip':address[0],
+               'port':address[1],
+               'key':key}
+    to_send = pickle.dumps(message)
+    client.send(to_send)
+    server.listen(1)
+    (connection_socket, addr) = server.accept()
+    data_byte = connection_socket.recv(2048)
+    message = pickle.loads(data_byte)
+
+    match message['type']:
+        case 'GET_SUCCESS':
+            print(f"Key {key} retrived value {message['value']}")
+        case "GET_FAILURE":
+            print(f"Failed to find value with key {key}")
+    connection_socket.close()
+    client.close()
+    server.close()
+    exit()
 
 
 

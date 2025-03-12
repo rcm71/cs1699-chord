@@ -154,6 +154,10 @@ class Chord_Node:
                             self.recv_lookup(message)
                         case "PUT":
                             self.recv_put(message)
+                        case "GET":
+                            self.recv_get(message)
+                        case "MINE?":
+                            self.send_theirs()
                         case _ :
                             pass
                 
@@ -224,6 +228,7 @@ class Chord_Node:
                 # new pred is new node. let me know we are their successor
                 self.set_predecessor(new_node.ip, new_node.port)
                 self.send_update_succ(new_node, self.me)
+
         elif message['hashname'] > self.me.hashname and self.successor.hashname > self.me.hashname:
             #either is our succ or we punt off message to our succ
             if message['hashname'] > self.successor.hashname:
@@ -238,6 +243,7 @@ class Chord_Node:
                 self.send_update_pred(self.successor, new_node)
                 self.set_successor(new_node.ip, new_node.port)
                 self.send_update_pred(new_node, self.me)
+
     
     # sends off 'join' message to another node, because the 
     # node attempting to join is not our predecessor or successor
@@ -289,6 +295,25 @@ class Chord_Node:
     # message: dict UPDATE_PRED as defined in send_update_pred()
     def recv_update_pred(self, message):
         self.set_predecessor(message['ip'], message['port'])
+        # what if they have our loot!!! should ask for that...
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.clients.append(client)
+        client.connect((self.predecessor.ip, self.predecessor.port))
+        message = {'type':"MINE?"}
+        to_send = pickle.dumps(message)
+        client.send(to_send)
+        client.close()
+        self.clients.remove(client)
+
+    # on join, we may need to rearrange data
+    # just gonna send, not delete juuuuust in case
+    def send_theirs(self):
+        for (key, value) in self.data_dict:
+            key_hash = hashlib.sha1(key.encode('utf-8')).hexdigest()
+            if key_hash > self.successor.hashname:
+                self.punt_data(key, value, self.successor)
+
+
     
     # creates new Node w/ ip:port and sets as self.predecessor
     #
@@ -421,7 +446,7 @@ class Chord_Node:
             if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
                 self.send_lookup_fail(message)
                 return
-            self.punt_lookup(message)
+            self.punt_message(message)
     # sends message on back to client.py telling them
     # our IP
     #
@@ -445,8 +470,8 @@ class Chord_Node:
 
     # we don't have the kev value, just send it on down the line
     #
-    # message: dict type="LOOKUP", from client way back when
-    def punt_lookup(self, message):
+    # message: dict type="LOOKUP" or "GET", from client way back when
+    def punt_message(self, message):
         # sock time
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.clients.append(client)
@@ -474,6 +499,50 @@ class Chord_Node:
         client.close()
         self.clients.remove(client)
 
+    def recv_get(self, message):
+        if message['key'] in self.data_dict:
+            self.send_get_success(message)
+            return
+        # check if we *should* have it
+        key_hash =  message['key'].encode('utf-8')
+        key_hash = hashlib.sha1(key_hash).hexdigest()
+        # if we should and dont, we prob don't have period
+        # gotta make sure we're not solo and break
+        if (self.successor == None or self.predecessor == None):
+            self.send_get_fail(message)
+            return
+        if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
+            self.send_get_fail(message)
+            return
+        self.punt_message(message)
+
+
+    def send_get_success(self, message):
+        # connect
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.clients.append(client)
+        client.connect((message['ip'], message['port']))
+        # massage
+        message = {'type':"GET_SUCCESS",
+                   'value':self.data_dict[message['key']]}
+        # serialize
+        to_send = pickle.dumps(message)
+        # send
+        client.send(to_send)
+        # cleanup
+        client.close()
+        self.clients.remove(client)
+
+    def send_get_fail(self, message):
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.clients.append(client)
+        client.connect((message['ip'], message['port']))
+        message = {"type":"GET_FAILURE"}
+        to_send = pickle.dumps(message)
+        client.send(to_send)
+        client.close()
+        self.clients.remove(client)
+
     def recv_put(self, message):
         print("recieved put")
         key = message['key']
@@ -494,6 +563,7 @@ class Chord_Node:
         else:
             print(f"Inserting: {key} / {value}")
             self.data_dict[key] = value
+        
 
 
 
