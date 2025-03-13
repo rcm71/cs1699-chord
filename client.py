@@ -7,6 +7,8 @@ import socket
 
 import pickle
 
+import hashlib
+
 argstring = "Please use args in this fashion:\n"
 argstring += "\tTo tell a node to leave:\n"
 argstring += "\t\t./client.py leave -ip <client-ip> -p <client-port> -n <chord-contact-ip>\n"
@@ -70,6 +72,11 @@ def main():
             print(argstring)
             return
         put(key, value, contact)
+    elif client_type == "get":
+        if key == None:
+            print(argstring)
+            return
+        get(key, contact)
     
 
 def leave(ip, port, contact):
@@ -110,11 +117,12 @@ def lookup(key, contact):
                'key':key}
     to_send = pickle.dumps(message)
     client.send(to_send)
+    print(hashlib.sha1(key.encode('utf-8')).hexdigest())
+
     server.listen(1)
     (connection_socket, addr) = server.accept()
     data_byte = connection_socket.recv(2048)
     message = pickle.loads(data_byte)
-
     match message['type']:
         case "LOOKUP_SUCCESS":
             print(f"Data found at address: {message['ip']}:{message['port']}")
@@ -167,12 +175,13 @@ def get(key, contact):
     (connection_socket, addr) = server.accept()
     data_byte = connection_socket.recv(2048)
     message = pickle.loads(data_byte)
-
     match message['type']:
-        case 'GET_SUCCESS':
+        case "GET_SUCCESS":
             print(f"Key {key} retrived value {message['value']}")
         case "GET_FAILURE":
             print(f"Failed to find value with key {key}")
+        case _:
+            print('huh')
     connection_socket.close()
     client.close()
     server.close()

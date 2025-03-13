@@ -115,6 +115,7 @@ class Chord_Node:
     # port: string of format "8000"
     def __init__(self, ip, port):
         self.me = Node(ip, int(port))
+        print(self.me.hashname)
 
         # set up socket
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -443,10 +444,21 @@ class Chord_Node:
             if (self.successor == None or self.predecessor == None):
                 self.send_lookup_fail(message)
                 return
-            if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
+            if (key_hash > self.me.hashname and key_hash < self.successor.hashname and (self.me.hashname < self.successor.hashname)):
+                self.send_lookup_fail(message)
+                return
+            # werid case when our successor is lower than us
+            # think this is enough tbh, this lgoic means we are the closest to max/0
+            if (key_hash > self.me.hashname and key_hash > self.successor.hashname):
+                self.send_lookup_fail(message)
+                return
+            # also weird case when key we are looking for is lower than EVERY node
+            # last guy should have. less than both of us and succ lower than me
+            if(key_hash < self.me.hashname and key_hash < self.successor.hashname and self.me.hashname > self.successor.hashname):
                 self.send_lookup_fail(message)
                 return
             self.punt_message(message)
+                
     # sends message on back to client.py telling them
     # our IP
     #
@@ -512,6 +524,16 @@ class Chord_Node:
             self.send_get_fail(message)
             return
         if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
+            self.send_get_fail(message)
+            return
+        # werid case when our successor is lower than us
+        # think this is enough tbh, this lgoic means we are the closest to max/0
+        if (key_hash > self.me.hashname and key_hash > self.successor.hashname):
+            self.send_get_fail(message)
+            return
+        # also weird case when key we are looking for is lower than EVERY node
+        # last guy should have. less than both of us and succ lower than me
+        if(key_hash < self.me.hashname and key_hash < self.successor.hashname and self.me.hashname > self.successor.hashname):
             self.send_get_fail(message)
             return
         self.punt_message(message)
