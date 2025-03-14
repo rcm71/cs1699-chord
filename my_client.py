@@ -94,7 +94,6 @@ def leave(ip, port, contact):
 
     client.send(to_send)
     client.close()
-    exit()
 
 def lookup(key, contact):
     # gonna need a client to send message and connect to first node
@@ -131,7 +130,6 @@ def lookup(key, contact):
     connection_socket.close()
     client.close()
     server.close()
-    exit()
 
 def put(key,value, contact):
     # crate client socket to sedn the k/v pair
@@ -148,7 +146,6 @@ def put(key,value, contact):
     # close it down
     client.send(to_send)
     client.close()
-    exit()
         
 def get(key, contact):
     # ask for the loot
@@ -185,7 +182,6 @@ def get(key, contact):
     connection_socket.close()
     client.close()
     server.close()
-    exit()
 
 
 

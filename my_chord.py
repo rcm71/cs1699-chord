@@ -107,7 +107,6 @@ class Chord_Node:
     server = None # socket for listening
     clients = [] # sockets for sending
     data_dict = {} # holds our k/v datums
-    message_log = [] # holds some messages to make sure we don't infinite punt
 
     # some initializations, sets up our socket and gets hashname
     #
@@ -115,58 +114,61 @@ class Chord_Node:
     # port: string of format "8000"
     def __init__(self, ip, port):
         self.me = Node(ip, int(port))
-        print(self.me.hashname)
-
+        self.successor = self.me
+        self.predecessor = self.me
+        self.update_log()
         # set up socket
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # no block!
-        self.server.setblocking(0)
-        self.server.settimeout(0.5)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((self.me.ip, self.me.port))
+    
+    # updates log file with current state
+    def update_log(self):
+        with open(f"log/{self.me.ipv4}", 'w') as file:
+            data = [f"Hashname: {self.me.hashname}\n",
+                    f"Successor: {self.successor.ipv4}\n",
+                    f"Predecesor: {self.predecessor.ipv4}\n",
+                    f"Data: {self.data_dict}"]
+            file.writelines(data)
     
     # nodes will sit here waiting for requests, handle in dif methods
     def server_loop(self):
         # set up queueueue size of 5
         self.server.listen(5)
         while True:
-            try:
-                # will throw TimeoutException if nothin waiting
-                (client_socket, client_address) = self.server.accept()
-                # what do they want !?!?!
-                # MMMMMm make this better so we dont have max bytes yk
-                data_bytes = client_socket.recv(2048)
-                # deserialize. mmm pickles
-                message = pickle.loads(data_bytes)
-                if 'type' in message:
-                    # switch action
-                    match message["type"]:
-                        case "CONNECT": 
-                            self.recv_join(message)
-                        case "UPDATE_PRED":
-                            self.recv_update_pred(message)
-                        case "UPDATE_SUCC":
-                            self.recv_update_succ(message)
-                        case "LEAVE":
-                            if message['ip'] == self.me.ip and message['port'] == self.me.port:
-                                self.leave()
-                            else:
-                                self.punt_leave(message)
-                        case "LOOKUP":
-                            self.recv_lookup(message)
-                        case "PUT":
-                            self.recv_put(message)
-                        case "GET":
-                            self.recv_get(message)
-                        case "MINE?":
-                            self.send_theirs()
-                        case _ :
-                            pass
-                
-                client_socket.close()
-
+            # will throw TimeoutException if nothin waiting
+            (client_socket, client_address) = self.server.accept()
+            # what do they want !?!?!
+            # MMMMMm make this better so we dont have max bytes yk
+            data_bytes = client_socket.recv(2048)
+            # deserialize. mmm pickles
+            message = pickle.loads(data_bytes)
+            if 'type' in message:
+                # switch action
+                match message["type"]:
+                    case "CONNECT": 
+                        self.recv_join(message)
+                    case "UPDATE_PRED":
+                        self.recv_update_pred(message)
+                    case "UPDATE_SUCC":
+                        self.recv_update_succ(message)
+                    case "LEAVE":
+                        if message['ip'] == self.me.ip and message['port'] == self.me.port:
+                            self.leave()
+                        else:
+                            self.punt_leave(message)
+                    case "LOOKUP":
+                        self.recv_lookup(message)
+                    case "PUT":
+                        self.recv_put(message)
+                    case "GET":
+                        self.recv_get(message)
+                    case "MINE?":
+                        self.send_theirs()
+                    case _ :
+                        pass
             
-            except TimeoutError as e:
-                pass
+            client_socket.close()
             
     # attempts to join the network
     # sends off a message to the 'connection' node
@@ -204,7 +206,7 @@ class Chord_Node:
     def recv_join(self, message):
         print("recieved connect!")
         # case when buddy is solo dolo
-        if self.successor == None or self.predecessor == None:
+        if self.successor == self.me or self.predecessor == self.me:
             self.set_successor(message['ip'], message['port'])
             self.set_predecessor(message['ip'], message['port']) 
             # doesn't matter in this case, but usually will be 
@@ -230,9 +232,9 @@ class Chord_Node:
                 self.set_predecessor(new_node.ip, new_node.port)
                 self.send_update_succ(new_node, self.me)
 
-        elif message['hashname'] > self.me.hashname and self.successor.hashname > self.me.hashname:
+        elif message['hashname'] > self.me.hashname:
             #either is our succ or we punt off message to our succ
-            if message['hashname'] > self.successor.hashname:
+            if message['hashname'] > self.successor.hashname and self.successor.hashname > self.me.hashname:
                 self.punt_join(message, self.successor)
             else:
                 # curr: pred -> me -> succ
@@ -309,6 +311,8 @@ class Chord_Node:
     # on join, we may need to rearrange data
     # just gonna send, not delete juuuuust in case
     def send_theirs(self):
+        if len(self.data_dict) == 0:
+            return
         for (key, value) in self.data_dict:
             key_hash = hashlib.sha1(key.encode('utf-8')).hexdigest()
             if key_hash > self.successor.hashname:
@@ -322,7 +326,8 @@ class Chord_Node:
     # port: int port # to set predecessor
     def set_predecessor(self, ip, port):
         self.predecessor = Node(ip, port)
-        print(f"Updated predecessor to: {ip}:{port}")
+        self.update_log()
+
 
     # sends message to update goal's successor as new
     #
@@ -362,7 +367,7 @@ class Chord_Node:
     # port: int to create node
     def set_successor(self, ip, port):
         self.successor = Node(ip, port)
-        print(f"Updated successor to: {ip}:{port}")
+        self.update_log()
     
     # lets the locals know that we gotta go...
     # The predecessor of the leaving node updates its successor 
@@ -371,7 +376,7 @@ class Chord_Node:
     # The leaving node transfers any data it was responsible for to its successor.
     def leave(self):
         print("Leaving!")
-        if self.successor == None or self.predecessor == None:
+        if self.successor == self.me or self.predecessor == self.me:
             exit()
 
         # curr: pred -> me -> succ
@@ -441,7 +446,7 @@ class Chord_Node:
             key_hash = hashlib.sha1(key_hash).hexdigest()
             # if we should and dont, we prob don't have period
             # gotta make sure we're not solo and break
-            if (self.successor == None or self.predecessor == None):
+            if (self.successor == self.me or self.predecessor == self.me):
                 self.send_lookup_fail(message)
                 return
             if (key_hash > self.me.hashname and key_hash < self.successor.hashname and (self.me.hashname < self.successor.hashname)):
@@ -520,7 +525,7 @@ class Chord_Node:
         key_hash = hashlib.sha1(key_hash).hexdigest()
         # if we should and dont, we prob don't have period
         # gotta make sure we're not solo and break
-        if (self.successor == None or self.predecessor == None):
+        if (self.successor == self.me or self.predecessor == self.me):
             self.send_get_fail(message)
             return
         if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
@@ -571,8 +576,9 @@ class Chord_Node:
         value = message['value']
         key_hash = hashlib.sha1(key.encode('utf-8')).hexdigest()
         # if we solo, we take everything
-        if(self.successor == None or self.predecessor == None):
+        if(self.successor == self.me or self.predecessor == self.me):
             self.data_dict[key] = value
+            self.update_log()
             return
         # should go behind us
         elif self.me.hashname > key_hash and self.me.hashname > self.predecessor.hashname:
@@ -583,8 +589,8 @@ class Chord_Node:
             self.punt_data(key, value, self.successor)
             return
         else:
-            print(f"Inserting: {key} / {value}")
             self.data_dict[key] = value
+            self.update_log()
         
 
 
