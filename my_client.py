@@ -124,12 +124,19 @@ def lookup(key, contact):
     message = pickle.loads(data_byte)
     match message['type']:
         case "LOOKUP_SUCCESS":
-            print(f"Data found at address: {message['ip']}:{message['port']}")
+            ipv4 = f"{message['ip']}:{message['port']}"
+            print(f"Data found at address: {ipv4}")
+            connection_socket.close()
+            client.close()
+            server.close()
+            return ipv4
         case "LOOKUP_FAILURE":
             print(f"Failed to find data in DHT")
-    connection_socket.close()
-    client.close()
-    server.close()
+            connection_socket.close()
+            client.close()
+            server.close()
+            return False
+    
 
 def put(key,value, contact):
     # crate client socket to sedn the k/v pair
@@ -172,16 +179,17 @@ def get(key, contact):
     (connection_socket, addr) = server.accept()
     data_byte = connection_socket.recv(2048)
     message = pickle.loads(data_byte)
+    value = None
     match message['type']:
         case "GET_SUCCESS":
+            value = message['value']
             print(f"Key {key} retrived value {message['value']}")
         case "GET_FAILURE":
             print(f"Failed to find value with key {key}")
-        case _:
-            print('huh')
     connection_socket.close()
     client.close()
     server.close()
+    return (key, value)
 
 
 

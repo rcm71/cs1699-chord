@@ -148,23 +148,33 @@ class Chord_Node:
                 match message["type"]:
                     case "CONNECT": 
                         self.recv_join(message)
+                        
                     case "UPDATE_PRED":
                         self.recv_update_pred(message)
+                        
                     case "UPDATE_SUCC":
                         self.recv_update_succ(message)
+                        
                     case "LEAVE":
                         if message['ip'] == self.me.ip and message['port'] == self.me.port:
                             self.leave()
+                            
                         else:
                             self.punt_leave(message)
+                            
+
                     case "LOOKUP":
                         self.recv_lookup(message)
+                        
                     case "PUT":
                         self.recv_put(message)
+                        
                     case "GET":
                         self.recv_get(message)
+                        
                     case "MINE?":
                         self.send_theirs()
+                        
                     case _ :
                         pass
             
@@ -313,7 +323,7 @@ class Chord_Node:
     def send_theirs(self):
         if len(self.data_dict) == 0:
             return
-        for (key, value) in self.data_dict:
+        for (key, value) in self.data_dict.items():
             key_hash = hashlib.sha1(key.encode('utf-8')).hexdigest()
             if key_hash > self.successor.hashname:
                 self.punt_data(key, value, self.successor)
@@ -387,7 +397,7 @@ class Chord_Node:
         # changes successor's pred to self.pred
         self.send_update_pred(self.successor, self.predecessor)
 
-        for (key, value) in self.data_dict:
+        for (key, value) in self.data_dict.items():
             self.punt_data(key,value, self.successor)
         self.server.close()
         for client in self.clients:
@@ -454,7 +464,7 @@ class Chord_Node:
                 return
             # werid case when our successor is lower than us
             # think this is enough tbh, this lgoic means we are the closest to max/0
-            if (key_hash > self.me.hashname and key_hash > self.successor.hashname):
+            if (key_hash > self.me.hashname and key_hash > self.successor.hashname and self.me.hashname > self.successor.hashname):
                 self.send_lookup_fail(message)
                 return
             # also weird case when key we are looking for is lower than EVERY node
@@ -533,7 +543,7 @@ class Chord_Node:
             return
         # werid case when our successor is lower than us
         # think this is enough tbh, this lgoic means we are the closest to max/0
-        if (key_hash > self.me.hashname and key_hash > self.successor.hashname):
+        if (key_hash > self.me.hashname and key_hash > self.successor.hashname and self.me.hashname > self.successor.hashname):
             self.send_get_fail(message)
             return
         # also weird case when key we are looking for is lower than EVERY node
