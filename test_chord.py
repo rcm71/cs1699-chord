@@ -38,16 +38,18 @@ class ChordTests(unittest.TestCase):
         self.procs.append(proc1)
 
         node2 = Chord_Node("127.0.0.1", 8002)
-        node2.send_join(node1.me.ipv4)
         proc2 = mp.Process(target=node2.server_loop)
         proc2.start()
+        time.sleep(1)
+        node2.send_join(node1.me.ipv4)
         self.procs.append(proc2)
         self.sockets.append(node2)
 
         node3 = Chord_Node("127.0.0.1", 8003)
-        node3.send_join(node1.me.ipv4)
         proc3 = mp.Process(target=node3.server_loop)
         proc3.start()
+        time.sleep(1)
+        node3.send_join(node1.me.ipv4)
         self.procs.append(proc3)
         self.sockets.append(node3)
 
@@ -78,16 +80,18 @@ class ChordTests(unittest.TestCase):
         self.procs.append(proc1)
 
         node2 = Chord_Node("127.0.0.1", 10002)
-        node2.send_join(node1.me.ipv4)
         proc2 = mp.Process(target=node2.server_loop)
         proc2.start()
+        time.sleep(1)
+        node2.send_join(node1.me.ipv4)
         self.procs.append(proc2)
         self.sockets.append(node2)
 
         node3 = Chord_Node("127.0.0.1", 10003)
-        node3.send_join(node1.me.ipv4)
         proc3 = mp.Process(target=node3.server_loop)
         proc3.start()
+        time.sleep(1)
+        node3.send_join(node1.me.ipv4)
         self.procs.append(proc3)
         self.sockets.append(node3)
 
@@ -128,16 +132,18 @@ class ChordTests(unittest.TestCase):
         self.procs.append(proc1)
 
         node2 = Chord_Node("127.0.0.1", 11002)
-        node2.send_join(node1.me.ipv4)
         proc2 = mp.Process(target=node2.server_loop)
         proc2.start()
+        time.sleep(1)
+        node2.send_join(node1.me.ipv4)
         self.procs.append(proc2)
         self.sockets.append(node2)
 
         node3 = Chord_Node("127.0.0.1", 11003)
-        node3.send_join(node1.me.ipv4)
         proc3 = mp.Process(target=node3.server_loop)
         proc3.start()
+        time.sleep(1)
+        node3.send_join(node1.me.ipv4)
         self.procs.append(proc3)
         self.sockets.append(node3)
 
@@ -165,16 +171,18 @@ class ChordTests(unittest.TestCase):
         self.procs.append(proc1)
 
         node2 = Chord_Node("127.0.0.1", 12002)
-        node2.send_join(node1.me.ipv4)
         proc2 = mp.Process(target=node2.server_loop)
         proc2.start()
+        time.sleep(1)
+        node2.send_join(node1.me.ipv4)
         self.procs.append(proc2)
         self.sockets.append(node2)
 
         node3 = Chord_Node("127.0.0.1", 12003)
-        node3.send_join(node1.me.ipv4)
         proc3 = mp.Process(target=node3.server_loop)
         proc3.start()
+        time.sleep(1)
+        node3.send_join(node1.me.ipv4)
         self.procs.append(proc3)
         self.sockets.append(node3)
 
@@ -192,12 +200,6 @@ class ChordTests(unittest.TestCase):
         self.assertTrue(v1 == "peeled")
         print(v1)
         
-
-
-
-
-    
-
 
     def teardown(self):
         for socket in self.sockets:

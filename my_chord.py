@@ -223,6 +223,7 @@ class Chord_Node:
             # my successor has me as predecessor
             # my predecessor has me as successor
             self.send_update_pred(self.successor, self.me)
+
             self.send_update_succ(self.predecessor, self.me)
             return
         elif message['hashname'] < self.me.hashname:
@@ -286,7 +287,7 @@ class Chord_Node:
         # he's alive!
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.clients.append(client)
-
+        
         client.connect((goal_node.ip, goal_node.port))
 
         # updating it *to* the node specified
