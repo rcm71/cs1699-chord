@@ -56,7 +56,7 @@ def main():
 # ip: string ip addr to connect to
 # port: string port # to connct to
 def init_ring(ip, port):
-    global node
+    global noded
     node = Chord_Node(ip, port)
     node.server_loop()
 
@@ -147,34 +147,24 @@ class Chord_Node:
                 # switch action
                 match message["type"]:
                     case "CONNECT": 
-                        self.recv_join(message)
-                        
+                        self.recv_join(message)              
                     case "UPDATE_PRED":
-                        self.recv_update_pred(message)
-                        
+                        self.recv_update_pred(message)   
                     case "UPDATE_SUCC":
-                        self.recv_update_succ(message)
-                        
+                        self.recv_update_succ(message)  
                     case "LEAVE":
                         if message['ip'] == self.me.ip and message['port'] == self.me.port:
-                            self.leave()
-                            
+                            self.leave()      
                         else:
                             self.punt_leave(message)
-                            
-
                     case "LOOKUP":
                         self.recv_lookup(message)
-                        
                     case "PUT":
-                        self.recv_put(message)
-                        
+                        self.recv_put(message)  
                     case "GET":
-                        self.recv_get(message)
-                        
+                        self.recv_get(message) 
                     case "MINE?":
-                        self.send_theirs()
-                        
+                        self.send_theirs()  
                     case _ :
                         pass
             
