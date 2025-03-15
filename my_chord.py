@@ -287,7 +287,7 @@ class Chord_Node:
         # he's alive!
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.clients.append(client)
-        
+
         client.connect((goal_node.ip, goal_node.port))
 
         # updating it *to* the node specified
@@ -460,6 +460,7 @@ class Chord_Node:
             if (self.successor == self.me or self.predecessor == self.me):
                 self.send_lookup_fail(message)
                 return
+            # 'normal' case
             if (key_hash > self.me.hashname and key_hash < self.successor.hashname and (self.me.hashname < self.successor.hashname)):
                 self.send_lookup_fail(message)
                 return
@@ -539,6 +540,7 @@ class Chord_Node:
         if (self.successor == self.me or self.predecessor == self.me):
             self.send_get_fail(message)
             return
+        # 'normal' failure
         if (key_hash > self.me.hashname and key_hash < self.successor.hashname and self.me.hashname < self.successor.hashname):
             self.send_get_fail(message)
             return
@@ -599,7 +601,7 @@ class Chord_Node:
         elif self.successor.hashname < key_hash and self.me.hashname < self.successor.hashname:
             self.punt_data(key, value, self.successor)
             return
-        else:
+        else: # ours!!
             self.data_dict[key] = value
             self.update_log()
         
